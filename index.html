@@ -341,7 +341,7 @@
     border-radius: 6px;
     border: 1.5px solid var(--border);
     background: transparent;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.15s;
@@ -351,6 +351,7 @@
     color: #bbb;
   }
   .toggle-btn:hover { border-color: #aaa; color: var(--charcoal); }
+  .toggle-btn[data-val="NA"] { font-size: 10px; letter-spacing: -0.02em; }
   .toggle-btn.active-yes {
     background: var(--green);
     border-color: var(--green);
@@ -413,25 +414,31 @@
   }
   .photo-upload-btn:hover { border-color: var(--teal); color: var(--teal); background: #f0f5f7; }
   .photo-upload-input { display: none; }
-  .photo-preview-wrap {
-    display: none;
+  .photo-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
     margin-top: 7px;
-    position: relative;
-    width: fit-content;
   }
-  .photo-preview-wrap.has-photo { display: block; }
-  .photo-preview {
-    max-width: 180px;
-    max-height: 120px;
+  .photo-thumb-wrap {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+  .photo-thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
     border-radius: 6px;
     border: 1.5px solid var(--border);
     display: block;
-    object-fit: cover;
+    cursor: pointer;
   }
   .photo-remove-btn {
     position: absolute;
-    top: -6px;
-    right: -6px;
+    top: -5px;
+    right: -5px;
     width: 18px;
     height: 18px;
     border-radius: 50%;
@@ -443,6 +450,35 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    line-height: 1;
+    z-index: 2;
+  }
+  /* Lightbox */
+  .lightbox-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-overlay.open { display: flex; }
+  .lightbox-img {
+    max-width: 90vw;
+    max-height: 88vh;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+  .lightbox-close {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
     line-height: 1;
   }
 
@@ -677,10 +713,16 @@
 
   /* PRINT */
   @media print {
-    .sidebar, .tabs, .toggle-group, button { display: none !important; }
-    .main { padding: 0; max-width: 100%; }
+    .sidebar, .tabs, button, .photo-upload-btn, .photo-remove-btn { display: none !important; }
+    .header { position: static; box-shadow: none; padding: 16px 24px; }
+    .layout { display: block; }
+    .main { padding: 0 24px; max-width: 100%; }
     body { background: white; }
     .section-card { break-inside: avoid; }
+    .check-item:not(.fail-item) { display: none !important; }
+    .subsection-title { display: none; }
+    .photo-strip { display: none !important; }
+    .notes-input { display: block !important; border: none; padding: 0; background: transparent; resize: none; }
   }
 
   /* RESPONSIVE */
@@ -779,8 +821,15 @@
     </div>
     <div class="sidebar-divider"></div>
     <button class="nav-action secondary" onclick="window.print()">Print / Export PDF</button>
+    <button class="nav-action secondary" onclick="copyReportText()" style="margin-top:4px">Copy Report Text</button>
     <button class="nav-action secondary" onclick="resetVisit()" style="margin-top:4px">Reset Visit</button>
   </nav>
+
+  <!-- LIGHTBOX -->
+  <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+    <img class="lightbox-img" id="lightboxImg" src="" alt="Visit photo">
+  </div>
 
   <!-- MAIN -->
   <main class="main">
@@ -1235,7 +1284,7 @@ function initState() {
     let idx = 0;
     sec.subsections.forEach(sub => {
       sub.items.forEach((item, i) => {
-        state[sec.id][idx] = { val: '', notes: '', photo: null };
+        state[sec.id][idx] = { val: '', notes: '', photos: [] };
         idx++;
       });
     });
@@ -1284,25 +1333,26 @@ function buildSectionHTML(sec) {
     sub.items.forEach((item) => {
       const val = state[sec.id][idx]?.val || '';
       const notes = state[sec.id][idx]?.notes || '';
-      const photo = state[sec.id][idx]?.photo || null;
+      const photos = state[sec.id][idx]?.photos || [];
       const failClass = val === 'N' ? 'fail-item' : val === 'NA' ? 'na-item' : '';
-      const photoWrapClass = photo ? 'photo-preview-wrap has-photo' : 'photo-preview-wrap';
+      const thumbsHTML = photos.map((src, pi) => `
+        <div class="photo-thumb-wrap">
+          <img class="photo-thumb" src="${src}" alt="Photo ${pi+1}" onclick="openLightbox('${src}')">
+          <button class="photo-remove-btn" data-sec="${sec.id}" data-idx="${idx}" data-pi="${pi}" title="Remove">✕</button>
+        </div>`).join('');
       html += `
         <div class="check-item ${failClass}" id="item-${sec.id}-${idx}" data-sec="${sec.id}" data-idx="${idx}">
           <div class="toggle-group">
-            <button class="toggle-btn ${val==='Y'?'active-yes':''}" data-sec="${sec.id}" data-idx="${idx}" data-val="Y">Y</button>
-            <button class="toggle-btn ${val==='N'?'active-no':''}" data-sec="${sec.id}" data-idx="${idx}" data-val="N">N</button>
+            <button class="toggle-btn ${val==='Y'?'active-yes':''}" data-sec="${sec.id}" data-idx="${idx}" data-val="Y">✓</button>
+            <button class="toggle-btn ${val==='N'?'active-no':''}" data-sec="${sec.id}" data-idx="${idx}" data-val="N">✕</button>
             <button class="toggle-btn ${val==='NA'?'active-na':''}" data-sec="${sec.id}" data-idx="${idx}" data-val="NA">NA</button>
           </div>
           <div class="check-content">
             <div class="check-text">${item}</div>
             <textarea class="notes-input" placeholder="Notes / corrective action..." data-sec="${sec.id}" data-idx="${idx}">${notes}</textarea>
-            <label class="photo-upload-btn" for="photo-${sec.id}-${idx}">📷 Add Photo</label>
-            <input class="photo-upload-input" type="file" accept="image/*" id="photo-${sec.id}-${idx}" data-sec="${sec.id}" data-idx="${idx}">
-            <div class="${photoWrapClass}" id="photo-wrap-${sec.id}-${idx}">
-              ${photo ? `<img class="photo-preview" src="${photo}" alt="Visit photo">` : '<img class="photo-preview" src="" alt="">'}
-              <button class="photo-remove-btn" data-sec="${sec.id}" data-idx="${idx}" title="Remove photo">✕</button>
-            </div>
+            <label class="photo-upload-btn" for="photo-${sec.id}-${idx}">📷 Add Photos</label>
+            <input class="photo-upload-input" type="file" accept="image/*" multiple id="photo-${sec.id}-${idx}" data-sec="${sec.id}" data-idx="${idx}">
+            <div class="photo-strip" id="photo-strip-${sec.id}-${idx}">${thumbsHTML}</div>
           </div>
         </div>`;
       idx++;
@@ -1317,6 +1367,38 @@ function iconBg(icon) {
   const map = {'📋':'#f0f7eb','📑':'#f0f4f7','🏡':'#fff3e8','🚪':'#f7f0f5','🪑':'#f0f7f5','🍳':'#fff8e8','🚻':'#f0f5ff','🌡️':'#fff0f0','🍽️':'#fff8ee','💛':'#fffff0','🎯':'#f0f7eb','☀️':'#fffbe8'};
   return map[icon] || '#f5f5f5';
 }
+
+// ─── IMAGE COMPRESSION ────────────────────────────────────────────────────────
+function compressImage(file, maxW, maxH, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = function() {
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        if (h > maxH) { w = Math.round(w * maxH / h); h = maxH; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── LIGHTBOX ─────────────────────────────────────────────────────────────────
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxOverlay').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightboxOverlay').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
 function rebindSectionEvents(sec) {
   const card = document.getElementById('card-' + sec.id);
@@ -1342,22 +1424,34 @@ function rebindSectionEvents(sec) {
     });
   });
   card.querySelectorAll('.photo-upload-input').forEach(input => {
-    input.addEventListener('change', e => {
+    input.addEventListener('change', async e => {
       const secId = input.dataset.sec;
       const idx = parseInt(input.dataset.idx);
-      const file = input.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(ev) {
-        state[secId][idx].photo = ev.target.result;
-        const wrap = document.getElementById('photo-wrap-' + secId + '-' + idx);
-        if (wrap) {
-          wrap.classList.add('has-photo');
-          const img = wrap.querySelector('.photo-preview');
-          if (img) img.src = ev.target.result;
+      const files = Array.from(input.files);
+      if (!files.length) return;
+      if (!state[secId][idx].photos) state[secId][idx].photos = [];
+      for (const file of files) {
+        const compressed = await compressImage(file, 800, 800, 0.60);
+        state[secId][idx].photos.push(compressed);
+        const strip = document.getElementById('photo-strip-' + secId + '-' + idx);
+        if (strip) {
+          const pi = state[secId][idx].photos.length - 1;
+          const wrap = document.createElement('div');
+          wrap.className = 'photo-thumb-wrap';
+          wrap.innerHTML = `
+            <img class="photo-thumb" src="${compressed}" alt="Photo ${pi+1}">
+            <button class="photo-remove-btn" data-sec="${secId}" data-idx="${idx}" data-pi="${pi}" title="Remove">✕</button>`;
+          wrap.querySelector('.photo-thumb').addEventListener('click', () => openLightbox(compressed));
+          wrap.querySelector('.photo-remove-btn').addEventListener('click', ev => {
+            ev.stopPropagation();
+            const pi2 = parseInt(wrap.querySelector('.photo-remove-btn').dataset.pi);
+            state[secId][idx].photos.splice(pi2, 1);
+            refreshSection(SECTIONS.find(s => s.id === secId));
+          });
+          strip.appendChild(wrap);
         }
-      };
-      reader.readAsDataURL(file);
+      }
+      input.value = '';
     });
   });
   card.querySelectorAll('.photo-remove-btn').forEach(btn => {
@@ -1365,27 +1459,117 @@ function rebindSectionEvents(sec) {
       e.stopPropagation();
       const secId = btn.dataset.sec;
       const idx = parseInt(btn.dataset.idx);
-      state[secId][idx].photo = null;
-      const wrap = document.getElementById('photo-wrap-' + secId + '-' + idx);
-      if (wrap) {
-        wrap.classList.remove('has-photo');
-        const img = wrap.querySelector('.photo-preview');
-        if (img) img.src = '';
-      }
-      const fileInput = document.getElementById('photo-' + secId + '-' + idx);
-      if (fileInput) fileInput.value = '';
+      const pi = parseInt(btn.dataset.pi);
+      state[secId][idx].photos.splice(pi, 1);
+      const sec2 = SECTIONS.find(s => s.id === secId);
+      refreshSection(sec2);
     });
   });
 }
 
-function refreshSection(secId) {
-  const sec = SECTIONS.find(s => s.id === secId);
-  const card = document.getElementById('card-' + secId);
+// ─── PLAIN TEXT REPORT ────────────────────────────────────────────────────────
+function copyReportText() {
+  const loc = document.getElementById('visitLocation');
+  const locText = loc.options[loc.selectedIndex]?.text || 'Not selected';
+  const date = document.getElementById('visitDate').value || 'Not set';
+  const daypart = document.getElementById('visitDaypart').value || 'Not set';
+  const day = document.getElementById('visitDay').value || 'Not set';
+  const gm = document.getElementById('visitGM').value || 'Not set';
+  const evaluator = document.getElementById('visitEvaluator').value || 'Not set';
+
+  const weighted = getWeightedScore();
+  const overallPct = weighted === null ? '--' : Math.round(weighted * 100) + '%';
+  const grade = weighted === null ? 'In Progress' : weighted >= 0.95 ? 'Done Right' : weighted >= 0.85 ? 'Needs Attention' : 'Action Required';
+
+  let lines = [];
+  lines.push('MORNING BELLE — DONE RIGHT VISIT REPORT');
+  lines.push('========================================');
+  lines.push('Location:  ' + locText);
+  lines.push('Date:      ' + date);
+  lines.push('Day:       ' + day);
+  lines.push('Daypart:   ' + daypart);
+  lines.push('GM:        ' + gm);
+  lines.push('Evaluator: ' + evaluator);
+  lines.push('');
+  lines.push('OVERALL SCORE: ' + overallPct + '  |  ' + grade);
+  lines.push('');
+  lines.push('SECTION SCORES');
+  lines.push('--------------');
+  SECTIONS.forEach(sec => {
+    const score = getSectionScore(sec.id);
+    const p = score === null ? '--' : Math.round(score * 100) + '%';
+    lines.push(sec.label.padEnd(36) + p + '  (weight: ' + Math.round(sec.weight * 100) + '%)');
+  });
+  lines.push('');
+  lines.push('ITEMS MARKED NO');
+  lines.push('---------------');
+  let hasFailures = false;
+  SECTIONS.forEach(sec => {
+    let idx = 0;
+    sec.subsections.forEach(sub => {
+      sub.items.forEach(item => {
+        const entry = state[sec.id][idx];
+        if (entry?.val === 'N') {
+          hasFailures = true;
+          lines.push('[' + sec.label.replace('Brand Image – ', '') + '] ' + item);
+          if (entry.notes) lines.push('  Note: ' + entry.notes);
+          const photoCount = (entry.photos || []).length;
+          if (photoCount) lines.push('  Photos attached: ' + photoCount + ' (see HTML file)');
+        }
+        idx++;
+      });
+    });
+  });
+  if (!hasFailures) lines.push('None.');
+  lines.push('');
+  lines.push('ITEMS MARKED N/A');
+  lines.push('----------------');
+  let hasNA = false;
+  SECTIONS.forEach(sec => {
+    let idx = 0;
+    sec.subsections.forEach(sub => {
+      sub.items.forEach(item => {
+        if (state[sec.id][idx]?.val === 'NA') {
+          hasNA = true;
+          lines.push('[' + sec.label.replace('Brand Image – ', '') + '] ' + item);
+        }
+        idx++;
+      });
+    });
+  });
+  if (!hasNA) lines.push('None.');
+  const recognition = document.getElementById('recognitionText')?.value;
+  if (recognition) {
+    lines.push('');
+    lines.push('RECOGNITION');
+    lines.push('-----------');
+    lines.push(recognition);
+  }
+  lines.push('');
+  lines.push('Generated: ' + new Date().toLocaleString());
+
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('[onclick="copyReportText()"]');
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy Report Text'; }, 2000); }
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.querySelector('[onclick="copyReportText()"]');
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = 'Copy Report Text'; }, 2000); }
+  });
+}
+
+function refreshSection(secOrId) {
+  const sec = typeof secOrId === 'string' ? SECTIONS.find(s => s.id === secOrId) : secOrId;
+  const card = document.getElementById('card-' + sec.id);
   const wasOpen = card.classList.contains('open');
   card.innerHTML = buildSectionHTML(sec);
   if (wasOpen) card.classList.add('open');
   rebindSectionEvents(sec);
-  updateNavScore(secId);
+  updateNavScore(sec.id);
 }
 
 function toggleSection(cardId) {
