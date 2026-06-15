@@ -395,6 +395,57 @@
   .notes-input:focus { border-color: var(--teal); }
   .check-item.fail-item .notes-input { display: block; }
 
+  /* PHOTO UPLOAD */
+  .photo-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 6px;
+    padding: 4px 10px;
+    border: 1.5px dashed var(--border);
+    border-radius: 6px;
+    background: transparent;
+    color: #aaa;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .photo-upload-btn:hover { border-color: var(--teal); color: var(--teal); background: #f0f5f7; }
+  .photo-upload-input { display: none; }
+  .photo-preview-wrap {
+    display: none;
+    margin-top: 7px;
+    position: relative;
+    width: fit-content;
+  }
+  .photo-preview-wrap.has-photo { display: block; }
+  .photo-preview {
+    max-width: 180px;
+    max-height: 120px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    display: block;
+    object-fit: cover;
+  }
+  .photo-remove-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--coral);
+    border: none;
+    color: white;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
   /* SCORE SUMMARY VIEW */
   .score-view { display: none; }
   .score-view.visible { display: block; }
@@ -673,47 +724,51 @@
     </div>
     <div class="nav-item" onclick="jumpToSection('pre-visit')" id="nav-pre-visit">
       <span class="nav-item-name">Pre-Visit Review</span>
-      <span class="nav-mini-score perfect" id="nav-score-pre-visit">100%</span>
+      <span class="nav-mini-score" id="nav-score-pre-visit">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('documents')" id="nav-documents">
       <span class="nav-item-name">Documents</span>
-      <span class="nav-mini-score perfect" id="nav-score-documents">100%</span>
+      <span class="nav-mini-score" id="nav-score-documents">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('exterior')" id="nav-exterior">
       <span class="nav-item-name">Exterior</span>
-      <span class="nav-mini-score perfect" id="nav-score-exterior">100%</span>
+      <span class="nav-mini-score" id="nav-score-exterior">--</span>
+    </div>
+    <div class="nav-item" onclick="jumpToSection('outside-dining')" id="nav-outside-dining">
+      <span class="nav-item-name">Outside Dining</span>
+      <span class="nav-mini-score" id="nav-score-outside-dining">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('host-stand')" id="nav-host-stand">
       <span class="nav-item-name">Host Stand</span>
-      <span class="nav-mini-score perfect" id="nav-score-host-stand">100%</span>
+      <span class="nav-mini-score" id="nav-score-host-stand">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('dining-room')" id="nav-dining-room">
       <span class="nav-item-name">Dining Room</span>
-      <span class="nav-mini-score perfect" id="nav-score-dining-room">100%</span>
+      <span class="nav-mini-score" id="nav-score-dining-room">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('kitchen')" id="nav-kitchen">
       <span class="nav-item-name">Kitchen</span>
-      <span class="nav-mini-score perfect" id="nav-score-kitchen">100%</span>
+      <span class="nav-mini-score" id="nav-score-kitchen">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('restrooms')" id="nav-restrooms">
       <span class="nav-item-name">Restrooms</span>
-      <span class="nav-mini-score perfect" id="nav-score-restrooms">100%</span>
+      <span class="nav-mini-score" id="nav-score-restrooms">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('food-safety')" id="nav-food-safety">
       <span class="nav-item-name">Food Safety</span>
-      <span class="nav-mini-score perfect" id="nav-score-food-safety">100%</span>
+      <span class="nav-mini-score" id="nav-score-food-safety">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('food-quality')" id="nav-food-quality">
       <span class="nav-item-name">Food Quality</span>
-      <span class="nav-mini-score perfect" id="nav-score-food-quality">100%</span>
+      <span class="nav-mini-score" id="nav-score-food-quality">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('guest-exp')" id="nav-guest-exp">
       <span class="nav-item-name">Guest Experience</span>
-      <span class="nav-mini-score perfect" id="nav-score-guest-exp">100%</span>
+      <span class="nav-mini-score" id="nav-score-guest-exp">--</span>
     </div>
     <div class="nav-item" onclick="jumpToSection('shift-ops')" id="nav-shift-ops">
       <span class="nav-item-name">Shift Operations</span>
-      <span class="nav-mini-score perfect" id="nav-score-shift-ops">100%</span>
+      <span class="nav-mini-score" id="nav-score-shift-ops">--</span>
     </div>
     <div class="sidebar-divider"></div>
     <div class="nav-item" onclick="showSection('scores')" id="nav-scores">
@@ -738,8 +793,9 @@
           <option value="">Select location</option>
           <option value="1001">1001 – East Beltline</option>
           <option value="1002">1002 – Bridge Street</option>
-          <option value="1003">1003 – Standale</option>
-          <option value="1004">1004 – Breton Village</option>
+          <option value="1003">1003 – Breton Village</option>
+          <option value="1004">1004 – Standale / Wilson</option>
+          <option value="1503">1503 – Blue Porch Grand Haven</option>
         </select>
       </div>
       <div class="info-field">
@@ -885,6 +941,29 @@ const SECTIONS = [
         'Sidewalks and entryways shoveled and salted (seasonal, when applicable)',
         'Patio properly set up for service or properly stored off-season',
         'All flowers, trees, and shrubs maintained and watered'
+      ]}
+    ]
+  },
+  {
+    id: 'outside-dining', label: 'Brand Image – Outside Dining', icon: '☀️', weight: 0.03, pts: 14,
+    subsections: [
+      { title: 'Patio Setup & Condition', items: [
+        'Patio cement and pavers clean, free of buildup, stains, and debris',
+        'All outdoor furniture clean and in good condition (no rust, cracks, or damage)',
+        'Table bases and chair legs free of grime and buildup',
+        'All umbrellas in proper working order, open correctly, and secured safely',
+        'All umbrella fabric clean, free of mold, mildew, and visible staining',
+        'Patio properly configured for current season and service volume',
+        'Outdoor tables properly set to service standard (mugs, caddies, water setup)',
+        'Patio free of standing water, debris, and trip hazards'
+      ]},
+      { title: 'Outdoor Ambiance & Brand', items: [
+        'All outdoor lighting fixtures clean and in proper working order',
+        'Outdoor signage and marketing material current, clean, and brand-appropriate',
+        'Outdoor heaters clean and in proper working order (seasonal, when applicable)',
+        'Patio barriers, planters, and decor clean and properly maintained',
+        'No pest activity present (wasps, bees, flies, rodents)',
+        'Outdoor dining area reflects the Morning Belle brand standard at all times'
       ]}
     ]
   },
@@ -1156,7 +1235,7 @@ function initState() {
     let idx = 0;
     sec.subsections.forEach(sub => {
       sub.items.forEach((item, i) => {
-        state[sec.id][idx] = { val: 'Y', notes: '' };
+        state[sec.id][idx] = { val: '', notes: '', photo: null };
         idx++;
       });
     });
@@ -1169,7 +1248,7 @@ function renderChecklist() {
   container.innerHTML = '';
   SECTIONS.forEach(sec => {
     const card = document.createElement('div');
-    card.className = 'section-card open';
+    card.className = 'section-card';
     card.id = 'card-' + sec.id;
     card.innerHTML = buildSectionHTML(sec);
     container.appendChild(card);
@@ -1180,8 +1259,9 @@ function renderChecklist() {
 function buildSectionHTML(sec) {
   let idx = 0;
   const secScore = getSectionScore(sec.id);
-  const pct = Math.round(secScore * 100);
-  const colorClass = pct === 100 ? 'green' : pct >= 80 ? 'amber' : 'coral';
+  const pct = secScore === null ? null : Math.round(secScore * 100);
+  const colorClass = pct === null ? '' : pct === 100 ? 'green' : pct >= 80 ? 'amber' : 'coral';
+  const displayPct = pct === null ? '--' : pct + '%';
 
   let html = `
     <div class="section-header" onclick="toggleSection('card-${sec.id}')">
@@ -1193,7 +1273,7 @@ function buildSectionHTML(sec) {
         </div>
       </div>
       <div class="section-score-badge">
-        <span class="section-pct" style="color:${colorClass==='green'?'#5a9a2e':colorClass==='amber'?'#c07a10':'#c0392b'}">${pct}%</span>
+        <span class="section-pct" style="color:${colorClass==='green'?'#5a9a2e':colorClass==='amber'?'#c07a10':colorClass===''?'#aaa':'#c0392b'}">${displayPct}</span>
         <span class="chevron">▼</span>
       </div>
     </div>
@@ -1202,9 +1282,11 @@ function buildSectionHTML(sec) {
   sec.subsections.forEach(sub => {
     html += `<div class="subsection-title">${sub.title}</div>`;
     sub.items.forEach((item) => {
-      const val = state[sec.id][idx]?.val || 'Y';
+      const val = state[sec.id][idx]?.val || '';
       const notes = state[sec.id][idx]?.notes || '';
+      const photo = state[sec.id][idx]?.photo || null;
       const failClass = val === 'N' ? 'fail-item' : val === 'NA' ? 'na-item' : '';
+      const photoWrapClass = photo ? 'photo-preview-wrap has-photo' : 'photo-preview-wrap';
       html += `
         <div class="check-item ${failClass}" id="item-${sec.id}-${idx}" data-sec="${sec.id}" data-idx="${idx}">
           <div class="toggle-group">
@@ -1215,6 +1297,12 @@ function buildSectionHTML(sec) {
           <div class="check-content">
             <div class="check-text">${item}</div>
             <textarea class="notes-input" placeholder="Notes / corrective action..." data-sec="${sec.id}" data-idx="${idx}">${notes}</textarea>
+            <label class="photo-upload-btn" for="photo-${sec.id}-${idx}">📷 Add Photo</label>
+            <input class="photo-upload-input" type="file" accept="image/*" id="photo-${sec.id}-${idx}" data-sec="${sec.id}" data-idx="${idx}">
+            <div class="${photoWrapClass}" id="photo-wrap-${sec.id}-${idx}">
+              ${photo ? `<img class="photo-preview" src="${photo}" alt="Visit photo">` : '<img class="photo-preview" src="" alt="">'}
+              <button class="photo-remove-btn" data-sec="${sec.id}" data-idx="${idx}" title="Remove photo">✕</button>
+            </div>
           </div>
         </div>`;
       idx++;
@@ -1226,7 +1314,7 @@ function buildSectionHTML(sec) {
 }
 
 function iconBg(icon) {
-  const map = {'📋':'#f0f7eb','📑':'#f0f4f7','🏡':'#fff3e8','🚪':'#f7f0f5','🪑':'#f0f7f5','🍳':'#fff8e8','🚻':'#f0f5ff','🌡️':'#fff0f0','🍽️':'#fff8ee','💛':'#fffff0','🎯':'#f0f7eb'};
+  const map = {'📋':'#f0f7eb','📑':'#f0f4f7','🏡':'#fff3e8','🚪':'#f7f0f5','🪑':'#f0f7f5','🍳':'#fff8e8','🚻':'#f0f5ff','🌡️':'#fff0f0','🍽️':'#fff8ee','💛':'#fffff0','🎯':'#f0f7eb','☀️':'#fffbe8'};
   return map[icon] || '#f5f5f5';
 }
 
@@ -1253,6 +1341,41 @@ function rebindSectionEvents(sec) {
       state[secId][idx].notes = ta.value;
     });
   });
+  card.querySelectorAll('.photo-upload-input').forEach(input => {
+    input.addEventListener('change', e => {
+      const secId = input.dataset.sec;
+      const idx = parseInt(input.dataset.idx);
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        state[secId][idx].photo = ev.target.result;
+        const wrap = document.getElementById('photo-wrap-' + secId + '-' + idx);
+        if (wrap) {
+          wrap.classList.add('has-photo');
+          const img = wrap.querySelector('.photo-preview');
+          if (img) img.src = ev.target.result;
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  card.querySelectorAll('.photo-remove-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const secId = btn.dataset.sec;
+      const idx = parseInt(btn.dataset.idx);
+      state[secId][idx].photo = null;
+      const wrap = document.getElementById('photo-wrap-' + secId + '-' + idx);
+      if (wrap) {
+        wrap.classList.remove('has-photo');
+        const img = wrap.querySelector('.photo-preview');
+        if (img) img.src = '';
+      }
+      const fileInput = document.getElementById('photo-' + secId + '-' + idx);
+      if (fileInput) fileInput.value = '';
+    });
+  });
 }
 
 function refreshSection(secId) {
@@ -1273,10 +1396,12 @@ function toggleSection(cardId) {
 // ─── SCORES ───────────────────────────────────────────────────────────────────
 function getSectionScore(secId) {
   const data = state[secId];
-  if (!data) return 1;
+  if (!data) return null;
   const items = Object.values(data);
-  const active = items.filter(i => i.val !== 'NA');
-  if (active.length === 0) return 1;
+  const scored = items.filter(i => i.val === 'Y' || i.val === 'N');
+  if (scored.length === 0) return null;
+  const active = items.filter(i => i.val !== 'NA' && i.val !== '');
+  if (active.length === 0) return null;
   const passed = active.filter(i => i.val === 'Y').length;
   return passed / active.length;
 }
@@ -1286,30 +1411,34 @@ function getWeightedScore() {
   let totalWeight = 0;
   SECTIONS.forEach(sec => {
     const score = getSectionScore(sec.id);
+    if (score === null) return;
     total += score * sec.weight;
     totalWeight += sec.weight;
   });
-  return totalWeight > 0 ? total / totalWeight : 1;
+  return totalWeight > 0 ? total / totalWeight : null;
 }
 
 function updateScores() {
   const weighted = getWeightedScore();
-  const pct = Math.round(weighted * 100);
-  document.getElementById('headerScore').textContent = pct + '%';
+  const pct = weighted === null ? null : Math.round(weighted * 100);
+  const display = pct === null ? '--' : pct + '%';
+  document.getElementById('headerScore').textContent = display;
   document.getElementById('headerScore').style.color =
-    pct >= 95 ? '#99C961' : pct >= 85 ? '#fbaf41' : '#fc826d';
-  document.getElementById('overallPct').textContent = pct + '%';
+    pct === null ? 'rgba(255,255,255,0.5)' : pct >= 95 ? '#99C961' : pct >= 85 ? '#fbaf41' : '#fc826d';
+  document.getElementById('overallPct').textContent = display;
   document.getElementById('overallGrade').textContent =
-    pct >= 95 ? 'Done Right ✓' : pct >= 85 ? 'Needs Attention' : 'Action Required';
+    pct === null ? 'In Progress' : pct >= 95 ? 'Done Right ✓' : pct >= 85 ? 'Needs Attention' : 'Action Required';
 
   // score grid
   const grid = document.getElementById('scoreGrid');
   grid.innerHTML = '';
   SECTIONS.forEach(sec => {
     const score = getSectionScore(sec.id);
-    const p = Math.round(score * 100);
-    const colorClass = p === 100 ? 'green' : p >= 80 ? 'amber' : 'coral';
-    const color = p === 100 ? '#5a9a2e' : p >= 80 ? '#c07a10' : '#c0392b';
+    const p = score === null ? null : Math.round(score * 100);
+    const colorClass = p === null ? '' : p === 100 ? 'green' : p >= 80 ? 'amber' : 'coral';
+    const color = p === null ? '#aaa' : p === 100 ? '#5a9a2e' : p >= 80 ? '#c07a10' : '#c0392b';
+    const barWidth = p === null ? 0 : p;
+    const displayPct = p === null ? '--' : p + '%';
     grid.innerHTML += `
       <div class="score-card">
         <div class="score-card-header">
@@ -1318,9 +1447,9 @@ function updateScores() {
           <span class="score-card-weight">${Math.round(sec.weight*100)}% wt</span>
         </div>
         <div class="score-bar-wrap">
-          <div class="score-bar ${colorClass}" style="width:${p}%"></div>
+          <div class="score-bar ${colorClass}" style="width:${barWidth}%"></div>
         </div>
-        <span class="score-bar-pct" style="color:${color}">${p}%</span>
+        <span class="score-bar-pct" style="color:${color}">${displayPct}</span>
       </div>`;
   });
 
@@ -1330,7 +1459,13 @@ function updateScores() {
 function updateNavScore(secId) {
   const el = document.getElementById('nav-score-' + secId);
   if (!el) return;
-  const pct = Math.round(getSectionScore(secId) * 100);
+  const score = getSectionScore(secId);
+  if (score === null) {
+    el.textContent = '--';
+    el.className = 'nav-mini-score';
+    return;
+  }
+  const pct = Math.round(score * 100);
   el.textContent = pct + '%';
   el.className = 'nav-mini-score ' + (pct === 100 ? 'perfect' : pct >= 80 ? 'warn' : 'fail');
 }
@@ -1434,7 +1569,6 @@ function resetVisit() {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 (function init() {
-  document.getElementById('visitDate').value = new Date().toISOString().split('T')[0];
   initState();
   renderChecklist();
   updateScores();
