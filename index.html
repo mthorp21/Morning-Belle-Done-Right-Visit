@@ -820,7 +820,8 @@
       <span class="nav-item-name">Action Plan</span>
     </div>
     <div class="sidebar-divider"></div>
-    <button class="nav-action secondary" onclick="window.print()">Print / Export PDF</button>
+    <button class="nav-action primary" onclick="saveVisit()" style="margin-top:4px">💾 Save Visit</button>
+    <button class="nav-action secondary" onclick="exportPDF()" style="margin-top:4px">📄 Export PDF with Photos</button>
     <button class="nav-action secondary" onclick="copyReportText()" style="margin-top:4px">Copy Report Text</button>
     <button class="nav-action secondary" onclick="resetVisit()" style="margin-top:4px">Reset Visit</button>
   </nav>
@@ -1749,6 +1750,216 @@ function resetVisit() {
   renderChecklist();
   updateScores();
   showSection('checklist');
+}
+
+// ─── SAVE VISIT ──────────────────────────────────────────────────────────────
+function saveVisit() {
+  const loc = document.getElementById('visitLocation');
+  const locText = loc.options[loc.selectedIndex]?.text || 'visit';
+  const date = document.getElementById('visitDate').value || new Date().toISOString().split('T')[0];
+  const filename = 'MB_Visit_' + locText.replace(/[^a-z0-9]/gi, '_') + '_' + date + '.html';
+
+  // Inject current state into a copy of this page's HTML
+  const serialized = JSON.stringify(state);
+  const visitMeta = JSON.stringify({
+    location: loc.value,
+    date: document.getElementById('visitDate').value,
+    daypart: document.getElementById('visitDaypart').value,
+    day: document.getElementById('visitDay').value,
+    gm: document.getElementById('visitGM').value,
+    evaluator: document.getElementById('visitEvaluator').value,
+    recognition: document.getElementById('recognitionText')?.value || '',
+    manualActions: manualActions
+  });
+
+  // Get full page HTML and inject saved state before closing script tag
+  let html = document.documentElement.outerHTML;
+
+  // Replace the init block to restore saved state on load
+  const restoreScript = `
+// ─── RESTORE SAVED STATE ─────────────────────────────────────────────────────
+(function restore() {
+  const savedState = ${serialized};
+  const savedMeta = ${visitMeta};
+  initState();
+  // Merge saved state (preserves photos)
+  Object.keys(savedState).forEach(secId => {
+    if (state[secId]) {
+      Object.keys(savedState[secId]).forEach(idx => {
+        state[secId][idx] = savedState[secId][idx];
+      });
+    }
+  });
+  manualActions = savedMeta.manualActions || [];
+  renderChecklist();
+  updateScores();
+  // Restore form fields
+  setTimeout(() => {
+    document.getElementById('visitLocation').value = savedMeta.location || '';
+    document.getElementById('visitDate').value = savedMeta.date || '';
+    document.getElementById('visitDaypart').value = savedMeta.daypart || '';
+    document.getElementById('visitDay').value = savedMeta.day || '';
+    document.getElementById('visitGM').value = savedMeta.gm || '';
+    document.getElementById('visitEvaluator').value = savedMeta.evaluator || '';
+    const recEl = document.getElementById('recognitionText');
+    if (recEl) recEl.value = savedMeta.recognition || '';
+  }, 50);
+})();`;
+
+  html = html.replace('// ─── INIT ────────────────────────────────────────────────────────────────────\n  (function init() {\n  initState();\n  renderChecklist();\n  updateScores();\n})();', restoreScript);
+
+  // Fallback: if replace didn't match, append restore at end
+  if (html.includes('(function init()')) {
+    html = html.replace(/\/\/ ─── INIT[\s\S]*?\}\)\(\);/, restoreScript);
+  }
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  const btn = document.querySelector('[onclick="saveVisit()"]');
+  if (btn) { btn.textContent = '✓ Saved!'; setTimeout(() => { btn.textContent = '💾 Save Visit'; }, 2000); }
+}
+
+// ─── EXPORT PDF WITH PHOTOS ──────────────────────────────────────────────────
+function exportPDF() {
+  const loc = document.getElementById('visitLocation');
+  const locText = loc.options[loc.selectedIndex]?.text || '';
+  const date = document.getElementById('visitDate').value || '';
+  const daypart = document.getElementById('visitDaypart').value || '';
+  const day = document.getElementById('visitDay').value || '';
+  const gm = document.getElementById('visitGM').value || '';
+  const evaluator = document.getElementById('visitEvaluator').value || '';
+  const weighted = getWeightedScore();
+  const overallPct = weighted === null ? '--' : Math.round(weighted * 100) + '%';
+  const grade = weighted === null ? 'In Progress' : weighted >= 0.95 ? 'Done Right ✓' : weighted >= 0.85 ? 'Needs Attention' : 'Action Required';
+  const gradeColor = weighted === null ? '#aaa' : weighted >= 0.95 ? '#4a8a28' : weighted >= 0.85 ? '#c07a10' : '#c0392b';
+
+  // Build section rows — non-compliant only
+  let sectionsHTML = '';
+  SECTIONS.forEach(sec => {
+    let itemsHTML = '';
+    let idx = 0;
+    sec.subsections.forEach(sub => {
+      sub.items.forEach(item => {
+        const entry = state[sec.id][idx];
+        if (entry?.val === 'N') {
+          const photos = entry.photos || [];
+          const photosHTML = photos.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">${photos.map(src => `<img src="${src}" style="width:100px;height:100px;object-fit:cover;border-radius:5px;border:1px solid #ddd">`).join('')}</div>` : '';
+          const notesHTML = entry.notes ? `<div style="margin-top:4px;font-size:11px;color:#888;font-style:italic">${entry.notes}</div>` : '';
+          itemsHTML += `
+            <div style="padding:10px 0;border-bottom:1px solid #f0f0f0">
+              <div style="display:flex;align-items:flex-start;gap:8px">
+                <span style="color:#fc826d;font-size:14px;font-weight:700;flex-shrink:0;margin-top:1px">✕</span>
+                <div style="flex:1">
+                  <div style="font-size:13px;color:#333;line-height:1.4">${item}</div>
+                  ${notesHTML}
+                  ${photosHTML}
+                </div>
+              </div>
+            </div>`;
+        }
+        idx++;
+      });
+    });
+    if (itemsHTML) {
+      const score = getSectionScore(sec.id);
+      const sPct = score === null ? '--' : Math.round(score * 100) + '%';
+      sectionsHTML += `
+        <div style="margin-bottom:20px;background:#fff;border:1px solid #e8e8e8;border-radius:10px;overflow:hidden">
+          <div style="background:#f7f9fa;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e8e8e8">
+            <span style="font-size:13px;font-weight:700;color:#3c5c68">${sec.icon} ${sec.label}</span>
+            <span style="font-size:12px;font-weight:700;color:#c0392b">${sPct}</span>
+          </div>
+          <div style="padding:0 16px">${itemsHTML}</div>
+        </div>`;
+    }
+  });
+
+  if (!sectionsHTML) {
+    sectionsHTML = '<div style="text-align:center;padding:40px;color:#aaa;font-size:14px">No non-compliant items found.</div>';
+  }
+
+  const recognition = document.getElementById('recognitionText')?.value;
+  const recognitionHTML = recognition ? `
+    <div style="margin-top:24px;background:#f0f7eb;border:1px solid #c8e0b0;border-radius:10px;padding:16px 20px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#6a9a48;margin-bottom:6px">Recognition</div>
+      <div style="font-size:13px;color:#3c5c68;line-height:1.5">${recognition}</div>
+    </div>` : '';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>MB Done Right Visit — ${locText} ${date}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #fff; color: #333; padding: 32px; max-width: 780px; margin: 0 auto; }
+  @media print {
+    body { padding: 16px; }
+    @page { margin: 0.6in; }
+  }
+</style>
+</head>
+<body>
+  <!-- HEADER -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #3c5c68">
+    <div>
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:#3c5c68">Morning Belle</div>
+      <div style="font-size:13px;color:#888;margin-top:2px">Done Right Visit Report — Non-Compliant Items</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:28px;font-weight:700;color:${gradeColor}">${overallPct}</div>
+      <div style="font-size:11px;color:${gradeColor};font-weight:600">${grade}</div>
+    </div>
+  </div>
+
+  <!-- VISIT META -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;background:#f7f9fa;border-radius:8px;padding:14px 18px">
+    ${locText ? `<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#aaa">Location</div><div style="font-size:12px;font-weight:600;color:#3c5c68;margin-top:2px">${locText}</div></div>` : ''}
+    ${date ? `<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#aaa">Date</div><div style="font-size:12px;font-weight:600;color:#3c5c68;margin-top:2px">${date}</div></div>` : ''}
+    ${daypart ? `<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#aaa">Daypart</div><div style="font-size:12px;font-weight:600;color:#3c5c68;margin-top:2px">${daypart}</div></div>` : ''}
+    ${day ? `<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#aaa">Day</div><div style="font-size:12px;font-weight:600;color:#3c5c68;margin-top:2px">${day}</div></div>` : ''}
+    ${gm ? `<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#aaa">GM on Duty</div><div style="font-size:12px;font-weight:600;color:#3c5c68;margin-top:2px">${gm}</div></div>` : ''}
+    ${evaluator ? `<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:#aaa">Evaluator</div><div style="font-size:12px;font-weight:600;color:#3c5c68;margin-top:2px">${evaluator}</div></div>` : ''}
+  </div>
+
+  <!-- SECTION SCORES SUMMARY -->
+  <div style="margin-bottom:24px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:10px">Section Scores</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      ${SECTIONS.map(sec => {
+        const score = getSectionScore(sec.id);
+        const p = score === null ? null : Math.round(score * 100);
+        const c = p === null ? '#aaa' : p === 100 ? '#4a8a28' : p >= 80 ? '#c07a10' : '#c0392b';
+        return `<div style="background:#f7f9fa;border-radius:6px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:#555">${sec.label.replace('Brand Image – ','')}</span>
+          <span style="font-size:12px;font-weight:700;color:${c}">${p === null ? '--' : p + '%'}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <!-- NON-COMPLIANT ITEMS -->
+  <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin-bottom:12px">Non-Compliant Items</div>
+  ${sectionsHTML}
+  ${recognitionHTML}
+
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #eee;font-size:10px;color:#bbb;text-align:right">
+    Generated ${new Date().toLocaleString()} — Morning Belle Done Right Visit
+  </div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 800);
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
